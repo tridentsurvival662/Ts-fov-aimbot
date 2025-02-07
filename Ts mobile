@@ -1,0 +1,166 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Define the correct key for authorization
+local correctKey = "carlyle123"
+
+-- Create the "ts mobile" window GUI
+local ScreenGui = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
+ScreenGui.Name = "ts mobile"
+
+-- Create a background frame for the window
+local WindowFrame = Instance.new("Frame", ScreenGui)
+WindowFrame.Position = UDim2.new(0.35, 0, 0.35, 0)
+WindowFrame.Size = UDim2.new(0.3, 0, 0.2, 0)
+WindowFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+WindowFrame.BorderSizePixel = 2
+
+-- Create a label for the key prompt
+local KeyPrompt = Instance.new("TextLabel", WindowFrame)
+KeyPrompt.Size = UDim2.new(1, 0, 0.2, 0)
+KeyPrompt.Text = "Enter Key:"
+KeyPrompt.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyPrompt.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+
+-- Create a text box for the key input
+local KeyInputBox = Instance.new("TextBox", WindowFrame)
+KeyInputBox.Size = UDim2.new(1, 0, 0.3, 0)
+KeyInputBox.Position = UDim2.new(0, 0, 0.2, 0)
+KeyInputBox.PlaceholderText = "Enter your key"
+KeyInputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyInputBox.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+KeyInputBox.Text = ""
+KeyInputBox.ClearTextOnFocus = false
+
+-- Create a button for submitting the key
+local SubmitButton = Instance.new("TextButton", WindowFrame)
+SubmitButton.Size = UDim2.new(1, 0, 0.3, 0)
+SubmitButton.Position = UDim2.new(0, 0, 0.5, 0)
+SubmitButton.Text = "Submit"
+SubmitButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+SubmitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- Function to handle key verification
+local function VerifyKey()
+    if KeyInputBox.Text == correctKey then
+        -- Key is correct, remove the window and allow the rest of the script to run
+        WindowFrame.Visible = false
+        -- Proceed with the rest of the script functionality
+        StartAimbotAndHighlight()
+    else
+        -- Key is incorrect, show an error message
+        local ErrorMessage = Instance.new("TextLabel", WindowFrame)
+        ErrorMessage.Size = UDim2.new(1, 0, 0.2, 0)
+        ErrorMessage.Position = UDim2.new(0, 0, 0.8, 0)
+        ErrorMessage.Text = "Invalid Key!"
+        ErrorMessage.TextColor3 = Color3.fromRGB(255, 0, 0)
+        ErrorMessage.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        ErrorMessage.TextSize = 14
+    end
+end
+
+-- Connect the submit button to the key verification function
+SubmitButton.MouseButton1Click:Connect(VerifyKey)
+
+-- FOV Circle initialization
+local FOV_Circle = Drawing.new("Circle")
+FOV_Circle.Radius = 300  -- The radius of the circle remains constant for the aimbot
+FOV_Circle.Color = Color3.fromRGB(255, 255, 255) -- White border
+FOV_Circle.Thickness = 2
+FOV_Circle.Filled = false
+FOV_Circle.Visible = true
+
+local function UpdateFOV()
+    local screenSize = Camera.ViewportSize
+    FOV_Circle.Position = Vector2.new(screenSize.X / 2, screenSize.Y / 2) -- Center on the screen
+end
+
+RunService.RenderStepped:Connect(UpdateFOV)
+
+-- FOV Slider
+local SliderFrame = Instance.new("Frame", ScreenGui)
+SliderFrame.Position = UDim2.new(0.35, 0, 0.7, 0)
+SliderFrame.Size = UDim2.new(0.3, 0, 0.05, 0)
+SliderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+SliderFrame.BorderSizePixel = 2
+
+local Slider = Instance.new("TextButton", SliderFrame)
+Slider.Size = UDim2.new(1, 0, 1, 0)
+Slider.Text = "Adjust FOV Circle Size"
+Slider.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+Slider.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local function AdjustFOVCircleSize(input)
+    if input.Position then
+        local relativeX = (input.Position.X - SliderFrame.AbsolutePosition.X) / SliderFrame.AbsoluteSize.X
+        local newSize = math.clamp(relativeX * 300, 50, 300)  -- Set the range for visual circle size
+        FOV_Circle.Thickness = newSize -- The circle visual size (Diameter)
+    end
+end
+
+Slider.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        AdjustFOVCircleSize(input)
+    end
+end)
+
+Slider.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        AdjustFOVCircleSize(input)
+    end
+end)
+
+-- Aimbot and Highlight Functions
+local function GetClosestPlayer()
+    local closestPlayer = nil
+    local shortestDistance = FOV_Circle.Radius
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local headPos = Camera:WorldToViewportPoint(player.Character.Head.Position)
+            local distance = (Vector2.new(headPos.X, headPos.Y) - FOV_Circle.Position).Magnitude
+
+            if distance < shortestDistance then
+                closestPlayer = player
+                shortestDistance = distance
+            end
+        end
+    end
+
+    return closestPlayer
+end
+
+local function HighlightClosestPlayer()
+    local target = GetClosestPlayer()
+    if target and target.Character and target.Character:FindFirstChild("Head") then
+        local headPosition = target.Character.Head.Position
+
+        if not target.Character:FindFirstChild("Highlight") then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "Highlight"
+            highlight.Parent = target.Character
+            highlight.FillColor = Color3.fromRGB(0, 0, 0) -- Black fill
+            highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- White outline
+            highlight.OutlineTransparency = 0.5
+            highlight.FillTransparency = 0.6 -- Transparent black
+            highlight.Radius = FOV_Circle.Radius -- Match FOV radius
+        end
+    end
+end
+
+local function StartAimbotAndHighlight()
+    -- Lock onto closest player in FOV and refresh highlight every millisecond
+    RunService.RenderStepped:Connect(function()
+        local target = GetClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            local headPosition = target.Character.Head.Position
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, headPosition)  -- Aim at target's head
+        end
+
+        -- Refresh highlight every frame (essentially every millisecond)
+        HighlightClosestPlayer()
+    end)
+end
