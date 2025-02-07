@@ -1,0 +1,63 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+
+local LocalPlayer = Players.LocalPlayer
+
+-- Function to find the nearest enemy within the FOV
+local function GetNearestTarget()
+    local closestPlayer = nil
+    local shortestDistance = 65  -- Default FOV radius
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local headPos, onScreen = Camera:WorldToViewportPoint(player.Character.Head.Position)
+            local distance = (Vector2.new(headPos.X, headPos.Y) - Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)).Magnitude
+
+            if onScreen and distance <= shortestDistance then
+                closestPlayer = player
+                shortestDistance = distance
+            end
+        end
+    end
+
+    return closestPlayer
+end
+
+-- Smooth aim function
+local function AimAt(target)
+    if target and target.Character and target.Character:FindFirstChild("Head") then
+        local headPos = Camera:WorldToViewportPoint(target.Character.Head.Position)
+        local aimPos = Vector2.new(headPos.X, headPos.Y)
+        local moveVector = (aimPos - Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)) / 3  -- Smooth movement
+
+        -- Use Camera Manipulation Instead of Mouse Movement
+        Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Character.Head.Position), 0.3)
+    end
+end
+
+-- Mobile Aim Activation
+local AimbotEnabled = false
+
+UserInputService.TouchStarted:Connect(function(input, gameProcessed)
+    if not gameProcessed then
+        AimbotEnabled = true
+    end
+end)
+
+UserInputService.TouchEnded:Connect(function(input, gameProcessed)
+    if not gameProcessed then
+        AimbotEnabled = false
+    end
+end)
+
+-- Aimbot Execution
+RunService.RenderStepped:Connect(function()
+    if AimbotEnabled then
+        local target = GetNearestTarget()
+        if target then
+            AimAt(target)
+        end
+    end
+end)
