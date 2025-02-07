@@ -1,0 +1,124 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Create FOV Circle
+local FOV_Circle = Drawing.new("Circle")
+FOV_Circle.Radius = 100
+FOV_Circle.Color = Color3.fromRGB(255, 255, 255) -- White border
+FOV_Circle.Thickness = 2
+FOV_Circle.Filled = false
+FOV_Circle.Visible = true
+
+-- Function to update FOV position
+local function UpdateFOV()
+    local screenSize = Camera.ViewportSize
+    FOV_Circle.Position = Vector2.new(screenSize.X / 2, screenSize.Y / 2) -- Center on the screen
+end
+
+-- Update FOV every frame
+RunService.RenderStepped:Connect(UpdateFOV)
+
+-- Key system for the window
+local keySystemActive = false
+local windowKey = "carlyle123" -- The key required to open the window
+
+-- Create Window for the UI (ts)
+local ScreenGui = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
+ScreenGui.Name = "ts"
+
+-- Function to display the window
+local function showWindow()
+    -- Create the window frame
+    local WindowFrame = Instance.new("Frame", ScreenGui)
+    WindowFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
+    WindowFrame.Size = UDim2.new(0.4, 0, 0.3, 0)
+    WindowFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    WindowFrame.BorderSizePixel = 2
+    WindowFrame.Visible = true
+
+    -- Create the slider frame
+    local SliderFrame = Instance.new("Frame", WindowFrame)
+    SliderFrame.Position = UDim2.new(0.2, 0, 0.2, 0)
+    SliderFrame.Size = UDim2.new(0.6, 0, 0.1, 0)
+    SliderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    SliderFrame.BorderSizePixel = 2
+
+    -- Create the slider button
+    local Slider = Instance.new("TextButton", SliderFrame)
+    Slider.Size = UDim2.new(1, 0, 1, 0)
+    Slider.Text = "FOV"
+    Slider.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    Slider.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+    -- Touch-based FOV adjustment
+    local function AdjustFOV(input)
+        if input.Position then
+            local relativeX = (input.Position.X - SliderFrame.AbsolutePosition.X) / SliderFrame.AbsoluteSize.X
+            local newFOV = math.clamp(relativeX * 500, 50, 500)
+            FOV_Circle.Radius = newFOV
+        end
+    end
+
+    Slider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            AdjustFOV(input)
+        end
+    end)
+
+    Slider.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            AdjustFOV(input)
+        end
+    end)
+end
+
+-- Key input system
+UserInputService.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        local key = input.KeyCode.Name
+        if key == Enum.KeyCode.Return then
+            -- Check if correct key is pressed
+            local playerKeyInput = game.Players.LocalPlayer.PlayerGui:WaitForChild("ts"):FindFirstChild("InputBox")
+            if playerKeyInput and playerKeyInput.Text == windowKey then
+                keySystemActive = true
+                showWindow()  -- Show the window after key input is validated
+            else
+                print("Invalid Key")
+            end
+        end
+    end
+end)
+
+-- Aimbot Function
+local function GetClosestPlayer()
+    local closestPlayer = nil
+    local shortestDistance = FOV_Circle.Radius
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local headPos = Camera:WorldToViewportPoint(player.Character.Head.Position)
+            local distance = (Vector2.new(headPos.X, headPos.Y) - FOV_Circle.Position).Magnitude
+
+            if distance < shortestDistance then
+                closestPlayer = player
+                shortestDistance = distance
+            end
+        end
+    end
+
+    return closestPlayer
+end
+
+-- Lock onto closest player in FOV
+RunService.RenderStepped:Connect(function()
+    if keySystemActive then
+        local target = GetClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            local headPosition = target.Character.Head.Position
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, headPosition)  -- Aim at target's head
+        end
+    end
+end)
